@@ -1,0 +1,36 @@
+sudo: required
+language: generic
+services: 
+  - docker
+
+
+before_install: 
+  - docker build -t zubairmoosa/react-tests -f ./client/Dockerfile.dev ./client
+
+script: 
+  - docker run -e CI=true zubairmoosa/react-tests npm run test
+
+after_success: 
+  - docker build -t zubairmoosa/multi-client ./client
+  - docker build -t zubairmoosa/multi-nginx ./nginx
+  - docker build -t zubairmoosa/multi-server ./server
+  - docker build -t zubairmoosa/multi-worker ./worker
+  #Docker login
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  #Push images to docker hub
+  - docker push zubairmoosa/multi-client
+  - docker push zubairmoosa/multi-nginx
+  - docker push zubairmoosa/multi-server
+  - docker push zubairmoosa/multi-worker
+
+deploy:
+  provider: elasticbeanstalk
+  region: 'us-east-2'
+  app: 'docker-multi'
+  env: 'Dockermulti-env'
+  bucket_name: 'elasticbeanstalk-us-east-2-849343488395'
+  bucket_path: 'docker-multi'
+  on:
+    branch: master
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: $AWS_SECRET_KEY
